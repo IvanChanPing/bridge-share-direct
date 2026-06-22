@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<base href="file:///android_asset/card/">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<script src="lottie.min.js"></script>
+<style>
+  html,body{ margin:0; padding:0; height:100%; background:transparent; overflow:hidden;
+    font-family:-apple-system,"Roboto","Segoe UI",sans-serif; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent; }
+  *{ -webkit-tap-highlight-color:transparent; }
+  #stage{ min-height:100%; display:flex; align-items:flex-start; justify-content:center; padding-top:44px; }
+  #card{ width:calc(100vw - 40px); box-sizing:border-box; color:#fff; overflow:hidden; touch-action:none;
+    background:rgba(36,36,40,.84); border:1px solid rgba(255,255,255,.14); border-radius:26px; padding:14px; transform-origin:top center; }
+  #card.pill{ width:150px !important; padding:0 !important; height:34px !important; border-radius:17px !important; }
+  #card.pill #inner{ display:none; } #card.pill #pill{ display:flex; }
+  #pill{ display:none; align-items:center; justify-content:space-between; height:34px; padding:0 13px; box-sizing:border-box; }
+  #pill .pl{ width:22px; height:22px; line-height:0; flex:none; }
+  #pill .pr{ width:24px; height:24px; line-height:0; flex:none; }
+  #pill .pr svg{ width:24px; height:24px; }
+  #pill .pr svg.prog{ transform:rotate(-90deg); }                                  /* progress arc starts at 12 o'clock */
+  #pill .pr .ptrack{ fill:none; stroke:rgba(255,255,255,.22); stroke-width:2.5; }
+  #pill .pr .parc{ fill:none; stroke:#fff; stroke-width:2.5; stroke-linecap:round; transition:stroke-dashoffset .12s linear; }
+  .row{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .logo{ flex:none; width:40px; height:40px; line-height:0; }
+  .txt{ flex:1; min-width:0; text-align:left; }
+  .title{ font-size:17px; font-weight:700; color:#fff; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sub{ font-size:13px; color:#9a9aa0; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .right{ flex:none; width:46px; height:46px; line-height:0; }
+  .thumb{ width:46px; height:46px; border-radius:11px; object-fit:cover; background:#3a3a3d; }
+  .stop{ position:relative; width:46px; height:46px; display:flex; align-items:center; justify-content:center; }
+  .stop svg{ position:absolute; top:0; left:0; width:46px; height:46px; transform:rotate(-90deg); }   /* arc starts at 12 o'clock */
+  .stop .track{ fill:none; stroke:rgba(255,255,255,.22); stroke-width:3; }
+  .stop .arc{ fill:none; stroke:#fff; stroke-width:3; stroke-linecap:round; transition:stroke-dashoffset .12s linear; }
+  .stop i{ position:relative; width:16px; height:16px; border-radius:4px; background:#00A1FF; display:block; }
+  .btns{ display:flex; gap:12px; }
+  .btn{ flex:1; -webkit-appearance:none; appearance:none; border:none; outline:none; height:42px; border-radius:21px;
+    font-size:14px; font-weight:600; cursor:pointer; transition:transform .09s ease; }
+  .btn.grey{ background:rgba(255,255,255,.16); color:#fff; } .btn.blue{ background:#00A1FF; color:#fff; }
+  .btn:active{ transform:scale(1.05); }   /* press = expand a little, no square highlight */
+  /* scale-pop for state morphs: the whole card gets a little bigger then settles */
+  @keyframes cardPop{ 0%{transform:scale(1)} 42%{transform:scale(1.04)} 100%{transform:scale(1)} }      /* grow: outward pop */
+  @keyframes cardPopIn{ 0%{transform:scale(1)} 42%{transform:scale(.965)} 100%{transform:scale(1)} }   /* shrink: inward bounce */
+</style>
+</head>
+<body>
+<div id="stage"><div id="card"><div id="inner"></div><div id="pill"></div></div></div>
+<script>
+function rt(p){ var x=new XMLHttpRequest(); x.open('GET',p,false); x.send(null); return x.responseText; }
+function rj(p){ return JSON.parse(rt(p)); }
+var resmap=rj('assets/res/default.json');
+function rsrc(k){ var v=resmap,p=k.split('.'); for(var i=0;i<p.length;i++) v=v?v[p[i]]:null; return v; }
+function svgEl(path,w,h){ var s=document.createElement('span'); s.style.cssText='display:inline-block;line-height:0;width:'+w+'px;height:'+h+'px';
+  try{ s.innerHTML=rt(path); var g=s.querySelector('svg'); if(g){g.setAttribute('width',w);g.setAttribute('height',h);} }catch(e){} return s; }
+var anims=[]; function lottieInto(el,p){ anims.push(lottie.loadAnimation({container:el,renderer:'svg',loop:false,autoplay:true,path:p})); }
+function clearAnims(){ anims.forEach(function(a){try{a.destroy();}catch(e){}}); anims=[]; }
+function btn(cls,label,fn){ var e=document.createElement('button'); e.className='btn '+cls; e.textContent=label; e.addEventListener('click',fn); return e; }
+
+var card=document.getElementById('card'), inner=document.getElementById('inner'), pill=document.getElementById('pill');
+var state='ack', progress=0, progTimer=null, collapsed=false, expandLock=false;
+
+function row(title,sub,rightNode){
+  var r=document.createElement('div'); r.className='row';
+  var lg=document.createElement('div'); lg.className='logo'; lg.appendChild(svgEl(rsrc('images.logo_a'),40,40));
+  var tx=document.createElement('div'); tx.className='txt';
+  var t=document.createElement('div'); t.className='title'; t.textContent=title;
+  var s=document.createElement('div'); s.className='sub'; s.textContent=sub;
+  tx.appendChild(t); tx.appendChild(s);
+  var rt2=document.createElement('div'); rt2.className='right'; if(rightNode) rt2.appendChild(rightNode);
+  r.appendChild(lg); r.appendChild(tx); r.appendChild(rt2); return r;
+}
+function ackContent(){ state='ack'; inner.innerHTML='';
+  var th=document.createElement('img'); th.className='thumb'; th.src=rsrc('images.preview_image');
+  inner.appendChild(row('OnePlus Share','1 file from "OnePlus 15R"',th));
+  var b=document.createElement('div'); b.className='btns';
+  b.appendChild(btn('grey','Decline',dismiss)); b.appendChild(btn('blue','Accept',startProgress));
+  inner.appendChild(b);
+}
+function progressContent(){ state='progress'; inner.innerHTML='';
+  var stop=document.createElement('div'); stop.className='stop';
+  // faint grey track + blue arc that fills clockwise with progress (Play-Store style), blue stop square in the middle
+  stop.innerHTML='<svg viewBox="0 0 46 46"><circle class="track" cx="23" cy="23" r="21.5"></circle><circle class="arc" cx="23" cy="23" r="21.5"></circle></svg><i></i>';
+  stop.addEventListener('click',cancelTransfer);
+  inner.appendChild(row(progress+'% received','From OnePlus 15R',stop));   // no bottom buttons
+  setStopProgress(progress);
+}
+// fill the stop-button ring like a Play-Store download: blue arc grows clockwise 0->100%
+var STOP_C=2*Math.PI*21.5;   // circumference of the r=21.5 ring
+function setStopProgress(p){ var a=inner.querySelector('.stop .arc'); if(!a) return;
+  p=Math.max(0,Math.min(100,p)); a.style.strokeDasharray=STOP_C; a.style.strokeDashoffset=STOP_C*(1-p/100); }
+function canceledContent(){ state='canceled'; inner.innerHTML='';
+  inner.appendChild(row('Canceled','From OnePlus 15R', null)); }
+// stop the transfer -> morph to "Canceled" first, then disappear
+function cancelTransfer(){ if(expandLock) return;   // ignore the stop square right after a pill-tap expand
+  clearInterval(progTimer); morphTo(canceledContent); setTimeout(dismiss,1100); }
+function completeContent(){ state='complete'; inner.innerHTML='';
+  var ring=document.createElement('div'); ring.style.cssText='width:46px;height:46px;line-height:0'; lottieInto(ring,rsrc('lotties.success'));
+  inner.appendChild(row('Transfer completed','1 file received.',ring));
+  var b=document.createElement('div'); b.className='btns';
+  b.appendChild(btn('grey','OK',dismiss)); b.appendChild(btn('blue','View',openView));
+  inner.appendChild(b);
+}
+function setPill(){ pill.innerHTML='';
+  var l=document.createElement('span'); l.className='pl'; l.appendChild(svgEl(rsrc('images.logo_a'),22,22));
+  var r=document.createElement('span'); r.className='pr';   // RIGHT: green progress ring, or a green check when complete
+  if(state==='complete'){
+    r.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="none" stroke="#00BD13" stroke-width="2.2"></circle><path d="M7.5 12.4 L10.6 15.3 L16.5 8.7" fill="none" stroke="#00BD13" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+  } else {
+    r.innerHTML='<svg class="prog" viewBox="0 0 24 24"><circle class="ptrack" cx="12" cy="12" r="10.5"></circle><circle class="parc" cx="12" cy="12" r="10.5"></circle></svg>';
+  }
+  pill.appendChild(l); pill.appendChild(r); setPillProgress(progress);
+}
+// fill the pill's progress ring (mirror of the card's stop ring)
+var PILL_C=2*Math.PI*10.5;
+function setPillProgress(p){ var a=pill.querySelector('.parc'); if(!a) return;
+  p=Math.max(0,Math.min(100,p)); a.style.strokeDasharray=PILL_C; a.style.strokeDashoffset=PILL_C*(1-p/100); }
+
+// Morph between card states (ack->progress->complete): fade old out, swap, animate the
+// card HEIGHT old->new while the new content fades in. Every state change is animated.
+function morphTo(build, done){
+  var h0=card.offsetHeight;
+  var oldBtns=inner.querySelector('.btns');                            // leaving buttons collapse out (not just fade)
+  if(oldBtns){ oldBtns.style.transition='transform .105s ease, opacity .105s ease'; oldBtns.style.transformOrigin='center'; oldBtns.style.transform='scale(.86)'; oldBtns.style.opacity='0'; }
+  inner.style.transition='opacity .098s ease'; inner.style.opacity='0';
+  setTimeout(function(){
+    build(); if(done) done();
+    var h1=card.offsetHeight, grow=(h1>=h0);
+    var newBtns=inner.querySelector('.btns'); if(newBtns) newBtns.style.transform='scale(.92)';   // new buttons pop in
+    card.style.transition='none'; card.style.height=h0+'px'; card.getBoundingClientRect();
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      card.style.transition='height .27s cubic-bezier(.2,1.3,.45,1)';
+      card.style.height=h1+'px';
+      card.style.animation=(grow?'cardPop':'cardPopIn')+' .315s cubic-bezier(.3,1,.4,1)';   // OUT on grow, IN on shrink
+      inner.style.transition='opacity .195s ease .038s'; inner.style.opacity='1';
+      if(newBtns){ newBtns.style.transition='transform .24s cubic-bezier(.3,1.3,.45,1) .045s'; newBtns.style.transform='scale(1)'; }
+      setTimeout(function(){ card.style.height='auto'; card.style.animation=''; },315);
+    }); });
+  },105);
+}
+function startProgress(){ progress=0;
+  // Accept -> the card shrinks straight into the pill over the camera; tap the pill to watch progress
+  collapseToPill(function(){ progressContent(); setPillProgress(progress); });
+  clearInterval(progTimer);
+  progTimer=setInterval(function(){ progress+=2; if(progress>=100){ progress=100; clearInterval(progTimer); refreshProgress(); setTimeout(toComplete,450); return; } refreshProgress(); },90);
+}
+function refreshProgress(){ if(state!=='progress') return;
+  if(collapsed){ setPillProgress(progress); }
+  else { var t=inner.querySelector('.title'); if(t) t.textContent=progress+'% received'; setStopProgress(progress); } }
+// transfer finished: if collapsed, the pill's ring becomes a green check, holds a beat, then expands
+function toComplete(){
+  if(collapsed){
+    state='complete'; setPill();                                   // progress ring -> green check in the pill
+    setTimeout(function(){ expandFromPill(function(){ completeContent(); }); }, 700);
+  } else morphTo(completeContent);
+}
+
+// ENTRANCE: the pill appears clearly near the top (by the camera), holds a beat as a pill,
+// then DESCENDS — and while it is STILL MOVING down it morphs into the card.
+var PILL_W=64, PILL_H=32, PILL_R=16, UP=-40;
+var EASE='cubic-bezier(.25,.9,.3,1)';
+function animateIn(){
+  var fw=card.offsetWidth, fh=card.offsetHeight;
+  var bts=inner.querySelector('.btns'); if(bts){ bts.style.transformOrigin='center'; bts.style.transform='scale(.72)'; }   // bigger bounce
+  inner.style.opacity='0';
+  card.style.transition='none';
+  card.style.width=PILL_W+'px'; card.style.height=PILL_H+'px'; card.style.borderRadius=PILL_R+'px'; card.style.transform='translateY('+UP+'px)'; card.style.opacity='0';
+  card.getBoundingClientRect();
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    card.style.transition='opacity .075s ease'; card.style.opacity='1';        // 1) pill shows by the camera
+    setTimeout(function(){                                                     // 2) after the tiniest fraction:
+      var sp='cubic-bezier(.2,1.2,.4,1)';   // subtle bounce
+      // descend (.375s); morph (width/height/radius) starts .105s in -> morphs WHILE still moving down
+      card.style.transition='transform .375s '+EASE+', height .315s '+sp+' .105s, width .39s '+sp+' .105s, border-radius .39s '+sp+' .105s';
+      card.style.transform='translateY(0)'; card.style.width=fw+'px'; card.style.height=fh+'px'; card.style.borderRadius='26px';
+      inner.style.transition='opacity .315s ease .135s'; inner.style.opacity='1';  // content renders DURING the morph
+      if(bts){ bts.style.transition='transform .44s cubic-bezier(.25,1.7,.45,1) .16s'; bts.style.transform='scale(1)'; }   // buttons bounce (bigger)
+      setTimeout(function(){ card.style.width=''; card.style.height='auto'; if(bts) bts.style.transform=''; },560);
+    }, 90);   // tiniest fraction as a pill, then descend + morph
+  }); });
+}
+// DISMISS (OK / Decline): first turn the card back INTO the pill, then fade the pill away.
+function dismiss(){
+  clearInterval(progTimer);
+  if(!collapsed){ collapseToPill(); setTimeout(fadePillOut,320); return; }
+  fadePillOut();
+}
+function fadePillOut(){
+  // final bit = the pill COLLAPSES (scales down to nothing) in place, then it's gone
+  card.style.transformOrigin='center';
+  card.style.transition='transform .2s cubic-bezier(.5,0,.8,.4), opacity .2s ease .03s';
+  card.style.transform='translateY('+PILL_UP+'px) scale(.15)'; card.style.opacity='0';
+  setTimeout(function(){ try{ AndroidCard.dismiss(); }catch(e){} },230);
+}
+function openView(){ try{ AndroidCard.openView(); }catch(e){ dismiss(); } }
+// The Dynamic-Island pill: sits straddling the status-bar edge (~half in the bar, half below it) so its
+// LOWER half lands in the WebView's reliably-tappable area (the top strip is eaten by the status bar /
+// top system-gesture zone). Swipe UP -> collapse; TAP -> expand. PILL_UP = pill translateY from the
+// card's top anchor; LESS negative = LOWER on screen. Tune this one number to taste.
+var PILL_UP=-22;
+function collapseToPill(after){ if(collapsed) return; collapsed=true; setPill(); card.style.opacity='1';
+  var fw=card.offsetWidth, fh=card.offsetHeight;
+  card.style.transition='none'; card.style.width=fw+'px'; card.style.height=fh+'px'; card.getBoundingClientRect();
+  var e='cubic-bezier(.3,.7,.2,1)', b='cubic-bezier(.2,1.3,.45,1)';   // b = overshoot -> a little INWARD bounce as it shrinks
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    card.style.transition='width .27s '+b+', height .27s '+b+', border-radius .27s '+b+', transform .24s '+e;
+    card.classList.add('pill');                                  // !important pill size -> animates from fw/fh; hides #inner, shows #pill
+    if(typeof after==='function') after();                       // swap inner content while it's hidden (no flash)
+    card.style.transform='translateY('+PILL_UP+'px)';            // settle into the pill position
+    setTimeout(function(){ card.style.width=''; card.style.height=''; },300);   // rest on the class size (after the bounce)
+  }); });
+}
+function expandFromPill(after){ if(!collapsed) return; collapsed=false;
+  expandLock=true; setTimeout(function(){ expandLock=false; },450);   // the tap that expands must NOT also hit the stop square
+  card.style.transition='none';
+  var sw=card.offsetWidth, sh=card.offsetHeight;                 // current pill size
+  card.classList.remove('pill');                                 // show #inner, hide #pill
+  if(typeof after==='function') after();                         // build the target content first
+  card.style.width=''; card.style.height=''; refreshProgress();
+  var tw=card.offsetWidth, th=card.offsetHeight;                 // natural full-card size
+  card.style.width=sw+'px'; card.style.height=sh+'px'; card.style.borderRadius='17px'; card.style.transform='translateY('+PILL_UP+'px)';
+  var rowEl=inner.querySelector('.row'); if(rowEl){ rowEl.style.transformOrigin='center'; rowEl.style.transform='scale(.72)'; }   // only the top row grows
+  var bts=inner.querySelector('.btns'); if(bts){ bts.style.transformOrigin='center'; bts.style.transform='scale(.72)'; }   // buttons: bigger bounce
+  inner.style.opacity='0'; card.getBoundingClientRect();
+  var e='cubic-bezier(.3,.7,.2,1)', b='cubic-bezier(.2,1.3,.45,1)';   // b = overshoot -> a little OUTWARD bounce as it grows
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    card.style.transition='width .3s '+b+', height .3s '+b+', border-radius .3s '+b+', transform .27s '+e;
+    card.style.width=tw+'px'; card.style.height=th+'px'; card.style.borderRadius='26px'; card.style.transform='translateY(0)';
+    inner.style.transition='opacity .195s ease .045s'; inner.style.opacity='1';
+    if(rowEl){ rowEl.style.transition='transform .33s '+b+' .02s'; rowEl.style.transform='scale(1)'; }
+    if(bts){ bts.style.transition='transform .42s cubic-bezier(.25,1.7,.45,1) .05s'; bts.style.transform='scale(1)'; }
+    setTimeout(function(){ card.style.width=''; card.style.height='auto'; if(rowEl) rowEl.style.transform=''; if(bts) bts.style.transform=''; },340);
+  }); });
+}
+// SWIPE the card off-screen sideways -> it flies off, then drops back in as the pill at the top
+function collapseSideways(dx){ if(collapsed) return; collapsed=true;
+  var off=(dx<0?-1:1)*(window.innerWidth+80);
+  card.style.transition='transform .22s cubic-bezier(.4,0,.7,1), opacity .2s ease';
+  card.style.transform='translateX('+off+'px)'; card.style.opacity='0';
+  setTimeout(function(){
+    setPill(); card.classList.add('pill'); card.style.transition='none';
+    card.style.width=''; card.style.height=''; card.style.transform='translateY('+PILL_UP+'px) scale(.85)';
+    card.getBoundingClientRect();
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      card.style.transition='transform .28s cubic-bezier(.2,1.4,.45,1), opacity .2s ease';
+      card.style.transform='translateY('+PILL_UP+'px) scale(1)'; card.style.opacity='1';
+    }); });
+  },220);
+}
+pill.addEventListener('click',function(){ expandFromPill(); });   // tap the pill -> expand (click fallback)
+
+// DRAG the card with your finger. While expanded the card follows the touch; on release:
+// big sideways -> fly off into the pill, up -> collapse to the pill, otherwise snap back.
+// While collapsed the pill is tap-to-expand (a small movement = a tap).
+var sy=null, sx=null, drag=null, UP_MAX=88;   // UP_MAX = furthest the card can be pushed up before it pills
+card.addEventListener('touchstart',function(ev){ var t=ev.touches[0];
+  if(collapsed){ sy=t.clientY; sx=t.clientX; return; }
+  drag={x:t.clientX, y:t.clientY, dx:0, dy:0, axis:null}; card.style.transition='none';
+},{passive:true});
+card.addEventListener('touchmove',function(ev){ if(!drag) return; var t=ev.touches[0];
+  drag.dx=t.clientX-drag.x; drag.dy=t.clientY-drag.y;
+  if(!drag.axis){ if(Math.abs(drag.dx)>8 || Math.abs(drag.dy)>8) drag.axis=(Math.abs(drag.dx)>Math.abs(drag.dy))?'x':'y'; else return; }   // LOCK to one axis (no diagonal)
+  if(drag.axis==='x'){                                                     // side to side only
+    card.style.transform='translateX('+drag.dx+'px)';
+    card.style.opacity=(1-Math.min(.35, Math.abs(drag.dx)/(window.innerWidth*0.5))).toString();
+  } else {                                                                 // up / down only
+    if(drag.dy <= -UP_MAX){ drag=null; collapseToPill(); return; }         // capped: pushing up to the limit -> pill
+    card.style.transform='translateY('+(drag.dy<0?drag.dy:drag.dy*0.3)+'px)';   // up moves 1:1 (to the cap), down resists
+  }
+},{passive:true});
+card.addEventListener('touchend',function(ev){
+  if(collapsed){ if(sy!==null){ var c=ev.changedTouches[0]; if(Math.abs(c.clientY-sy)<16 && Math.abs(c.clientX-sx)<16) expandFromPill(); } sy=null; sx=null; return; }
+  if(!drag) return; var ax=drag.axis, dx=drag.dx, dy=drag.dy; drag=null;
+  if(!ax){ card.style.transition=''; card.style.transform=''; card.style.opacity='1'; return; }   // never crossed the axis threshold = a tap
+  if(ax==='x' && Math.abs(dx)>90) collapseSideways(dx);                    // fling sideways -> pill
+  else if(ax==='y' && dy<-50) collapseToPill();                            // swipe up -> pill
+  else { card.style.transition='transform .26s cubic-bezier(.2,1.25,.4,1), opacity .2s ease'; card.style.transform='translateY(0)'; card.style.opacity='1'; }   // snap back
+},{passive:true});
+
+ackContent();
+animateIn();
+</script>
+</body>
+</html>

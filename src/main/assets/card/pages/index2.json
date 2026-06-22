@@ -1,0 +1,240 @@
+{
+  "template": [
+    {
+      "type": "card-template",
+      "attr": {
+        "entry": "notification",
+        "category": "modular"
+      },
+      "children": [
+        {
+          "type": "compact",
+          "attr": {},
+          "children": [
+            {
+              "type": "leading",
+              "attr": {
+                "category": "mirror",
+                "smallMargin": "true"
+              },
+              "children": [
+                {
+                  "type": "image",
+                  "attr": {
+                    "level": "A*",
+                    "src": "{{icon_logo_a}}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B*",
+                    "value": "{{descriptionB}}"
+                  },
+                  "shown": "{{showB}}"
+                }
+              ]
+            },
+            {
+              "type": "trailing",
+              "attr": {
+                "smallMargin": "true"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B0",
+                    "value": "{{capsule_title}}"
+                  },
+                  "shown": "{{isB0Show}}"
+                },
+                {
+                  "type": "lottie",
+                  "attr": {
+                    "level": "A0",
+                    "src": "{{lottie_a}}",
+                    "autoplay": "{{playLottie}}"
+                  },
+                  "shown": "{{isShowLottie}}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "expanded",
+          "attr": {
+            "level": "F1*"
+          },
+          "children": [
+            {
+              "type": "center",
+              "attr": {
+                "category": "common"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B1*",
+                    "color": "{{title_color}}",
+                    "transformEffect": "none",
+                    "fontWeight": "bold",
+                    "value": "{{panel_title}}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "C2",
+                    "color": "{{assist_color}}",
+                    "maxLines": "2",
+                    "value": "{{detailsText}}"
+                  }
+                },
+                {
+                  "type": "image",
+                  "attr": {
+                    "level": "D1",
+                    "src": "{{icon_logo_d1}}"
+                  },
+                  "shown": "{{showD1}}"
+                },
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E4",
+                    "type": "capsule",
+                    "value": "{{cancel_text}}"
+                  },
+                  "events": {
+                    "click": "acceptClick"
+                  },
+                  "shown": "{{isE4Show}}"
+                },
+                {
+                  "type": "image",
+                  "attr": {
+                    "level": "D",
+                    "src": "{{preview_src}}",
+                    "scaleType": "CENTER_INSIDE"
+                  },
+                  "shown": "{{isShowPreview}}"
+                },
+                {
+                  "type": "lottie",
+                  "attr": {
+                    "level": "D",
+                    "src": "{{lottie_ad}}",
+                    "autoplay": "{{playLottie}}"
+                  },
+                  "shown": "{{isShowLottie}}"
+                }
+              ]
+            },
+            {
+              "type": "trailing",
+              "attr": {
+                "category": "multi-buttons"
+              },
+              "children": [
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E14",
+                    "type": "capsule",
+                    "color": "{{button_color}}",
+                    "bgColor": "{{reject_bg}}",
+                    "value": "{{reject_text}}",
+                    "voiceLabel": "{{reject}}"
+                  },
+                  "events": {
+                    "click": "declineClick"
+                  },
+                  "shown": "{{showCancel}}"
+                },
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E15",
+                    "type": "capsule",
+                    "color": "{{button_color}}",
+                    "bgColor": "{{accept_bg}}",
+                    "value": "{{accept_text}}",
+                    "voiceLabel": "{{reject}}"
+                  },
+                  "events": {
+                    "click": "acceptClick"
+                  },
+                  "shown": "{{showConfirm}}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "attr": {
+            "level": "A1*",
+            "src": "{{icon_logo_a}}"
+          }
+        }
+      ]
+    }
+  ],
+  "data": {
+    "icon_logo_a": "{{$r('images.logo_a')}}",
+    "icon_logo_d1": "{{$r('images.logo_d1')}}",
+    "capsule_title": "",
+    "panel_title": "",
+    "detailsText": "",
+    "cancel_text": "",
+    "accept_text": "",
+    "reject_text": "",
+    "button_color": "#E6FFFFFF",
+    "accept_bg": "#00A1FF",
+    "reject_bg": "#28FFFFFF",
+    "isShowPreview": true,
+    "preview_src": "{{$r('images.preview_image')}}",
+    "accept": "",
+    "reject": "",
+    "progress": "0",
+    "showCancel": true,
+    "showConfirm": true,
+    "isE4Show": false,
+    "playLottie": true,
+    "isShowLottie": false,
+    "lottie_a": "{{$r('lotties.fail_capsule')}}",
+    "lottie_ad": "{{$r('lotties.fail')}}",
+    "title_color": "#E6FFFFFF",
+    "assist_color": "#8AFFFFFF",
+    "color": "{{$r('colors.process_color')}}",
+    "bg_color": "{{$r('colors.process_br_color')}}",
+    "expanded_color": "{{$r('colors.expanded_bg_color')}}",
+    "expanded_border_color": "{{$r('colors.expanded_border_color')}}",
+    "descriptionB": "",
+    "showB": false,
+    "showD1": true,
+    "isB0Show": false,
+    "instanceId": "instanceId"
+  },
+  "actions": {
+    "acceptClick": {
+      "type": "message",
+      "uri": "com.oplus.oshare.cardwidget",
+      "params": {
+        "event": "accept"
+      }
+    },
+    "declineClick": {
+      "type": "message",
+      "uri": "com.oplus.oshare.cardwidget",
+      "params": {
+        "event": "decline"
+      }
+    }
+  },
+  "styles": {},
+  "apiVersion": {}
+}

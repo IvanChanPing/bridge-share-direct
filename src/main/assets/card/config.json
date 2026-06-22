@@ -1,0 +1,48 @@
+{
+	"identifier": {
+		"url": "com.oneplus.oshare",
+		"id": "268451947",
+		"type": "seedling",
+		"name": "OShareConfirm2.0",
+		"version": "2.0.2",
+		"versionCode": 2000002
+	},
+	"intent": {
+		"action": ["pantanal.intent.business.app.system.OSHARE_USER_CONFIRM"],
+		"domain": "business_app_system"
+	},
+	"runtime": {
+		"type": "interactive",
+		"permission": [],
+		"use-software": {
+			"platform-version": 3000000
+		},
+		"support-hardware": {
+			"device": [
+				{
+					"type": "PHONE",
+					"entry": [
+						"statusbar",
+						"notification",
+						"lockscreen",
+						"secondarynotification",
+						"secondarylockscreen"
+					]
+				}
+			]
+		},
+		"interactive": {
+			"pages": [
+				"pages/index",
+				"pages/index2"
+			],
+			"window": {
+				"design-width": 328,
+				"auto-design-width": false
+			}
+		}
+	},
+	"meta-data": {
+		"card-config": "assets/card-config.json"
+	}
+}

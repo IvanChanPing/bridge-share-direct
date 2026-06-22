@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bridge Share Direct</string>
+    <string name="island_a11y_label">Bridge Share island</string>
+    <string name="island_a11y_desc">Lets the Bridge Share transfer island sit on top of the status bar and over the camera and stay tappable, like Dynamic Island. It does not read screen content.</string>
+</resources>

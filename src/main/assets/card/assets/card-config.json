@@ -1,0 +1,10 @@
+{
+	"card": {
+		"support": "notification_sm|notification_md|notification_lg"
+	},
+	"host": {
+		"packageName": "com.oneplus.oshare",
+		"componentName": "com.oplus.oshare.seeding.OShareCardWidgetProvider",
+		"minHostVersion": 150200
+	}
+}

@@ -1,0 +1,59 @@
+plugins {
+    id 'com.android.application' version '8.5.2'
+    id 'org.jetbrains.kotlin.android' version '1.9.24'
+}
+
+android {
+    namespace 'com.bridge.share'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.bridge.share.directapp'
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    flavorDimensions += "engine"
+    productFlavors {
+        direct  { dimension "engine"; applicationIdSuffix ".direct";  versionNameSuffix "-direct";  buildConfigField "String", "ENGINE", "\"WIFI_DIRECT\"" }
+        aware   { dimension "engine"; applicationIdSuffix ".aware";   versionNameSuffix "-aware";   buildConfigField "String", "ENGINE", "\"WIFI_AWARE\"" }
+        hotspot { dimension "engine"; applicationIdSuffix ".hotspot"; versionNameSuffix "-hotspot"; buildConfigField "String", "ENGINE", "\"HOTSPOT\"" }
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        debug {
+            storeFile file('keystore/debug.jks')
+            storePassword 'bridgepass'
+            keyAlias 'bridge'
+            keyPassword 'bridgepass'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0' // lottie's LottieAnimationView extends AppCompatImageView
+    implementation 'com.airbnb.android:lottie:6.4.0'
+}

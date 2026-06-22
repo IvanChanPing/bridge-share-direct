@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HCE service for the NFC trigger. category="other" => always active.
+     - F04C53574F4F4453 ("\xF0LSWOODS"): proprietary AID for our reader-mode path
+       (CredsNfcReader.SELECT_AID + REQUEST_HOST).
+     - D2760000850101: the standard NDEF Type-4 Tag application AID. Registering it lets a
+       phone's STOCK NFC dispatch (a receiver NOT in reader mode) read our emulated NDEF on a
+       tap and act on the Android Application Record (auto-launch the app) — the NFC-as-trigger
+       design. -->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/app_name"
+    android:requireDeviceUnlock="false">
+    <aid-group
+        android:description="@string/app_name"
+        android:category="other">
+        <aid-filter android:name="F04C53574F4F4453" />
+        <aid-filter android:name="D2760000850101" />
+    </aid-group>
+</host-apdu-service>

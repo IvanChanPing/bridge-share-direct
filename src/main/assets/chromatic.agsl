@@ -1,0 +1,37 @@
+uniform shader texIn;
+uniform vec2 aberrationOffset;
+uniform vec2 viewport;
+uniform vec4 posShiftColor;
+uniform vec4 negShiftColor;
+
+// This function is unfortunately not uniform-name agnostic: since shader uniforms can't be passed as arguments,
+// it expects texIn to be the name of the shader's input. Rename after copying if necessary.
+bool sample_chromatic(vec2 fragCoord, vec2 view_dims, vec2 offset, out vec4 posSample, out vec4 centerSample, out vec4 negSample) {
+    vec2 coord_offset = offset * view_dims;
+    if (length(offset) == 0.0) return false;
+    else {
+        centerSample = texIn.eval(fragCoord);
+        posSample = texIn.eval(fragCoord + vec2(coord_offset.x, coord_offset.y));
+        negSample = texIn.eval(fragCoord - vec2(coord_offset.x, coord_offset.y));
+        return true;
+    }
+}
+
+vec4 combine_chromatic(vec4 posSample, vec4 centerSample, vec4 negSample, vec4 posColor, vec4 negColor) {
+    vec4 upShift = posSample * posColor;
+    vec4 downShift = negSample * negColor;
+    vec4 centerColor = centerSample * (vec4(1.0) - posColor - negColor);
+
+    vec4 result = upShift + downShift + centerColor;
+    return result;
+}
+
+vec4 main(vec2 fragCoord) {
+    vec4 centerSample = vec4(0.0, 0.0, 0.0, 0.0);
+    vec4 posSample, negSample;
+    if (sample_chromatic(fragCoord, viewport, aberrationOffset, posSample, centerSample, negSample)) {
+        return combine_chromatic(posSample, centerSample, negSample, posShiftColor, negShiftColor);
+    } else {
+        return centerSample;
+    }
+}

@@ -1,0 +1,263 @@
+{
+  "template": [
+    {
+      "type": "card-template",
+      "attr": {
+        "entry": "notification",
+        "category": "modular"
+      },
+      "children": [
+        {
+          "type": "compact",
+          "attr": {},
+          "children": [
+            {
+              "type": "leading",
+              "attr": {
+                "category": "mirror",
+                "smallMargin": "true"
+              },
+              "children": [
+                {
+                  "type": "image",
+                  "attr": {
+                    "level": "A*",
+                    "src": "{{icon_logo_a}}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B*",
+                    "value": "{{descriptionB}}"
+                  },
+                  "shown": "{{showB}}"
+                }
+              ]
+            },
+            {
+              "type": "trailing",
+              "attr": {
+                "smallMargin": "true"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B0",
+                    "value": "{{capsule_title}}"
+                  },
+                  "shown": "{{isB0Show}}"
+                },
+                {
+                  "type": "widget",
+                  "attr": {
+                    "level": "A0",
+                    "type": "progress",
+                    "min": "0",
+                    "max": "100",
+                    "value": "{{progress}}",
+                    "color": "{{color}}",
+                    "bgColor": "{{bg_color}}",
+                    "showProgress": "true"
+                  },
+                  "shown": "{{isShowProcess}}"
+                },
+                {
+                  "type": "lottie",
+                  "attr": {
+                    "level": "A0",
+                    "src": "{{lottie_a}}",
+                    "autoplay": "{{playLottie}}"
+                  },
+                  "shown": "{{isShowLottie}}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "expanded",
+          "attr": {
+            "level": "F1*"
+          },
+          "children": [
+            {
+              "type": "center",
+              "attr": {
+                "category": "text-highlight"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "B1*",
+                    "color": "{{title_color}}",
+                    "transformEffect": "none",
+                    "fontWeight": "bold",
+                    "value": "{{panel_title}}"
+                  }
+                },
+                {
+                  "type": "text",
+                  "attr": {
+                    "level": "C2",
+                    "color": "{{assist_color}}",
+                    "maxLines": "2",
+                    "value": "{{detailsText}}"
+                  }
+                },
+                {
+                  "type": "image",
+                  "attr": {
+                    "level": "D1",
+                    "src": "{{icon_logo_d1}}"
+                  },
+                  "shown": "{{showD1}}"
+                },
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E2",
+                    "type": "circle",
+                    "icon": "{{cancelIcon}}",
+                    "voiceLabel": "{{reject}}"
+                  },
+                  "events": {
+                    "click": "declineClick"
+                  },
+                  "shown": "{{showCancel}}"
+                },
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E4",
+                    "type": "capsule",
+                    "value": "{{cancel_text}}"
+                  },
+                  "events": {
+                    "click": "acceptClick"
+                  },
+                  "shown": "{{isE4Show}}"
+                },
+                {
+                  "type": "button",
+                  "attr": {
+                    "level": "E1*",
+                    "type": "circle",
+                    "icon": "{{downloadIcon}}",
+                    "voiceLabel": "{{accept}}"
+                  },
+                  "events": {
+                    "click": "acceptClick"
+                  },
+                  "shown": "{{showConfirm}}"
+                },
+                {
+                  "type": "widget",
+                  "attr": {
+                    "level": "D",
+                    "type": "progress",
+                    "min": "0",
+                    "max": "100",
+                    "value": "{{progress}}",
+                    "color": "{{color}}",
+                    "bgColor": "{{bg_color}}",
+                    "showProgress": "true"
+                  },
+                  "shown": "{{isShowProcess}}",
+                  "events": {
+                    "click": "btnOnClick"
+                  },
+                  "children": [
+                    {
+                      "type": "image",
+                      "attr": {
+                        "src": "{{icon_process_d}}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "lottie",
+                  "attr": {
+                    "level": "D",
+                    "src": "{{lottie_ad}}",
+                    "autoplay": "{{playLottie}}"
+                  },
+                  "shown": "{{isShowLottie}}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "attr": {
+            "level": "A1*",
+            "src": "{{icon_logo_a}}"
+          }
+        }
+      ]
+    }
+  ],
+  "data": {
+    "icon_logo_a": "{{$r('images.logo_a')}}",
+    "icon_logo_d1": "{{$r('images.logo_d1')}}",
+    "capsule_title": "",
+    "panel_title": "",
+    "detailsText": "",
+    "cancel_text": "",
+    "accept": "",
+    "reject": "",
+    "cancelIcon": "{{$r('images.cancel')}}",
+    "downloadIcon": "{{$r('images.download')}}",
+    "icon_process_d": "{{$r('images.process_d')}}",
+    "progress": "0",
+    "showCancel": true,
+    "showConfirm": true,
+    "playLottie": true,
+    "isE4Show": false,
+    "isShowLottie": false,
+    "lottie_a": "{{$r('lotties.fail_capsule')}}",
+    "lottie_ad": "{{$r('lotties.fail')}}",
+    "title_color": "#E6FFFFFF",
+    "assist_color": "#8AFFFFFF",
+    "color": "{{$r('colors.process_color')}}",
+    "bg_color": "{{$r('colors.process_br_color')}}",
+    "expanded_color": "{{$r('colors.expanded_bg_color')}}",
+    "expanded_border_color": "{{$r('colors.expanded_border_color')}}",
+    "descriptionB": "",
+    "showB": false,
+    "showD1": false,
+    "isB0Show": false,
+    "isShowProcess": false,
+    "instanceId": "instanceId"
+  },
+  "actions": {
+    "acceptClick": {
+      "type": "message",
+      "uri": "com.oplus.oshare.cardwidget",
+      "params": {
+        "event": "accept"
+      }
+    },
+    "declineClick": {
+      "type": "message",
+      "uri": "com.oplus.oshare.cardwidget",
+      "params": {
+        "event": "decline"
+      }
+    },
+    "btnOnClick": {
+      "type": "message",
+      "uri": "com.oplus.oshare.cardwidget",
+      "params": {
+        "event": "cancel",
+        "instanceId": "{{instanceId}}"
+      }
+    }
+  },
+  "styles": {},
+  "apiVersion": {}
+}

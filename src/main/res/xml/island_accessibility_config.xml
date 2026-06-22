@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Config for IslandA11yService. Mirrors a verified-working example
+     (github.com/thbecker/android-accessibility-overlay): flagDefault + feedbackGeneric +
+     typeWindowStateChanged + notificationTimeout 0. The service only hosts the island overlay
+     window; it does not read window content (canRetrieveWindowContent=false — the official guide
+     confirms false is fine when the service does not inspect the UI, and does not block listing). -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/island_a11y_desc"
+    android:accessibilityFlags="flagDefault"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="0"
+    android:canRetrieveWindowContent="false" />

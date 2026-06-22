@@ -1,0 +1,184 @@
+// OnePlus "lingguang" glow — RESHAPED for the woods test: instead of the OEM
+// nav-bar parabola, the bright line + glow now trace the FULL screen-edge rounded
+// rectangle (wraps all four edges), and the soft gradient texture is shrunk and
+// pinned to the front-camera punch-hole. Uniforms are unchanged so GlowView's
+// existing uniform-setting + alpha animation still drive it.
+uniform float bar_alpha;
+uniform float glow_alpha;
+uniform float gradient_alpha;
+uniform vec4 offsets_bar_gradient;
+uniform vec2 viewport;
+uniform vec2 texIn_dims;
+uniform float bend;
+uniform shader texIn;
+
+// non-animated params
+// {width, height (bend), thickness}
+uniform vec3 paraboladims;
+// {chromaticoffset, glow intensity}
+uniform vec2 glowparams;
+uniform vec2 center;
+uniform vec4 glowcolor;
+uniform vec4 upShiftColor;
+uniform vec4 downShiftColor;
+
+// Camera punch-hole anchor for the gradient blob, SET AT RUNTIME from the real DisplayCutout
+// (GlowView.setCameraAnchor). Seeded to a centred top punch-hole (0.5, 0.027) + size 0.16 so the
+// blob lands on THIS device's actual front camera instead of a hardcoded guess.
+uniform vec2 cameraCenter;
+uniform float cameraSize;
+
+// Screen rounded-corner radius in uv-HEIGHT units (cornerRadius * viewport.y = pixels). SET AT RUNTIME
+// from the device's real WindowInsets RoundedCorner (GlowView.setCornerRadiusPx) so the ring corners
+// match the actual screen corners EXACTLY instead of a guessed constant. Seeded to a sane default.
+uniform float cornerRadius;
+
+// Animated seconds (GlowView feeds elapsed time). Drives a per-position SHIMMER so different parts of the
+// ring brighten/dim at different rates instead of one uniform global pulse.
+uniform float shimmerTime;
+
+const float FLT_MAX = 3.402823466e+38;
+
+// ---- TUNABLES (normalized 0..1 screen space, aspect-corrected on x) ----
+const float EDGE_MARGIN   = 0.005;  // SMALL POSITIVE = the bright line sits just INSIDE the real screen
+                                    // edge (fully visible, hugging it) instead of off-screen. Was -0.012
+                                    // (line past the edge -> glow looked inset). Lower toward 0 to hug
+                                    // tighter; go negative again to push it off-screen.
+const float CORNER_RADIUS = 0.085;  // rounded-corner radius — bumped to follow the phone's rounded screen
+                                    // corners more closely (raise = rounder corners, lower = squarer).
+const float TOP_INSET     = 0.004;  // push ONLY the top edge DOWN this much (small = hugs the true top)
+const float CAMERA_X      = 0.5;    // front-camera punch-hole location (uv)
+const float CAMERA_Y      = 0.027;
+const float CAMERA_SIZE   = 0.16;   // on-screen diameter the gradient is squeezed into
+
+// Signed distance to a rounded box centered at origin (half-size b, corner r).
+float sdRoundBox(vec2 p, vec2 b, float r) {
+    vec2 q = abs(p) - b + vec2(r);
+    return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r;
+}
+
+// Aspect-corrected signed distance to the screen-edge rounded-rect outline.
+float edgeDist(vec2 uv) {
+    float aspect = viewport.x / max(viewport.y, 1.0);
+    // Asymmetric in Y: top edge pushed DOWN by TOP_INSET (so it stays on-screen),
+    // bottom edge unchanged. Left/right symmetric.
+    float topY = EDGE_MARGIN + TOP_INSET;
+    float botY = 1.0 - EDGE_MARGIN;
+    float cyY = (topY + botY) * 0.5;
+    float hy  = (botY - topY) * 0.5;
+    vec2 p = vec2((uv.x - 0.5) * aspect, uv.y - cyY);
+    vec2 b = vec2(0.5 * aspect - EDGE_MARGIN, hy);
+    // Use the device's real corner radius; subtract EDGE_MARGIN so the inset ring stays CONCENTRIC
+    // with the screen corner (an inset rounded-rect's corner radius shrinks by the inset distance).
+    return sdRoundBox(p, b, max(cornerRadius - EDGE_MARGIN, 0.0));
+}
+
+vec4 glow(vec4 glowColor, float d) {
+    float sd = FLT_MAX;
+    const float k = 0.3;
+    vec4 cL = vec4(0.0);
+    float d2 = abs(d);
+    float hi = clamp(0.5 + 0.5 * (d2 - sd) / k, 0.0, 1.0);
+    sd = mix(d2, sd, hi) - k * hi * (1.0 - hi);
+    cL = mix(glowColor, cL, hi);
+    float glowblur = (1.0 - glowparams.y) * 50.0; // intensity -> blur
+    return cL * min(1.0, exp(-sd * glowblur));
+}
+
+// ---- Ripple-style sparkle (ported verbatim from RippleShader.CIRCLE_SHADER) ----
+// Blended onto the edge line so the border picks up the ripple's grain/texture.
+// SET SPARKLE_STRENGTH = 0.0 TO REMOVE the sparkle entirely (clean edge glow).
+const float SPARKLE_STRENGTH = 0.4;
+const float SPARKLE_CELL = 3.0;   // pixel quantization for the sparkle cells
+const float PI = 3.1415926535897932384626;
+
+float triangleNoise(vec2 n) {
+    n = fract(n * vec2(5.3987, 5.4421));
+    n += dot(n.yx, n.xy + vec2(21.5351, 14.3137));
+    float xy = n.x * n.y;
+    return fract(xy * 95.4307) + fract(xy * 75.04961) - 1.0;
+}
+
+float sparkles(vec2 uv, float t) {
+    float n = triangleNoise(uv);
+    float s = 0.0;
+    for (float i = 0.0; i < 4.0; i += 1.0) {
+        float l = i * 0.01;
+        float h = l + 0.1;
+        float o = smoothstep(n - l, h, n);
+        o *= abs(sin(PI * o * (t + 0.55 * i)));
+        s += o;
+    }
+    return s;
+}
+
+vec4 evalSample(vec2 uv) {
+    return glow(glowcolor, abs(edgeDist(uv)));
+}
+
+// Chromatic aberration around the edge line (vertical R/B split).
+bool sample_chromatic(vec2 uv, vec2 offset, out vec4 posSample, out vec4 centerSample, out vec4 negSample) {
+    if (length(offset) == 0.0) return false;
+    centerSample = evalSample(uv);
+    posSample = evalSample(uv + offset);
+    negSample = evalSample(uv - offset);
+    return true;
+}
+
+vec4 combine_chromatic(vec4 posSample, vec4 centerSample, vec4 negSample, vec4 posColor, vec4 negColor) {
+    vec4 upShift = posSample * posColor;
+    vec4 downShift = negSample * negColor;
+    vec4 centerColor = centerSample * (vec4(1.0) - posColor - negColor);
+    return upShift + downShift + centerColor;
+}
+
+vec4 main(vec2 fragCoord) {
+    vec2 uv = fragCoord / viewport;
+
+    // ---- bright edge line: distance to the screen-edge rounded rect ----
+    float d = abs(edgeDist(uv));
+    float thickness = paraboladims.z;
+    vec4 barColor = vec4(1.0, 1.0, 1.0, 1.0);
+    float barFalloffRadius = thickness / 2.0;
+    barColor.a *= mix(1.0, 0.0, min(max((d - thickness), 0.0) / barFalloffRadius, 1.0));
+
+    // ---- chromatic glow hugging that edge line ----
+    vec4 coreColor = vec4(0.0, 0.0, 0.0, 0.0);
+    vec4 posSample, negSample, outGlow;
+    if (sample_chromatic(uv, vec2(0.0, glowparams.x), posSample, coreColor, negSample)) {
+        outGlow = combine_chromatic(posSample, coreColor, negSample, downShiftColor, upShiftColor);
+    } else {
+        outGlow = coreColor;
+    }
+
+    // ---- soft gradient texture: shrunk + pinned to the camera punch-hole ----
+    // Map the whole texture into a small CAMERA_SIZE region centered on the camera.
+    vec2 camUv = (uv - cameraCenter) / cameraSize + vec2(0.5, 0.5);
+    vec4 gradientColor = texIn.eval(texIn_dims * camUv);
+
+    // ---- per-position shimmer: vary brightness AROUND the ring so different segments dim/brighten at
+    // different rates (three sine harmonics, different spatial frequencies + temporal speeds, so the
+    // motion looks irregular rather than one uniform pulse). Affects the edge line + glow ONLY. ----
+    float aspratio = viewport.x / max(viewport.y, 1.0);
+    float ang = atan(uv.y - 0.5, (uv.x - 0.5) * aspratio); // -PI..PI around the screen centre
+    float wob = 0.30 * sin(ang * 6.0  + shimmerTime * 1.10)
+              + 0.18 * sin(ang * 11.0 - shimmerTime * 0.65)
+              + 0.10 * sin(ang * 3.0  + shimmerTime * 0.40 + 1.7);
+    float shimmer = clamp(0.72 + wob, 0.40, 1.10);
+
+    // ---- composite (animated alphas drive the entrance/activation envelope) ----
+    outGlow *= glow_alpha * shimmer;
+    gradientColor *= gradient_alpha;
+    barColor *= bar_alpha * shimmer;
+    barColor *= barColor.a;
+    outGlow *= outGlow.a;
+    vec4 result = barColor + outGlow + gradientColor;
+
+    // Ripple-style sparkle blended onto the edge line only (confined by edgeMask),
+    // fading with the same glow_alpha envelope. SPARKLE_STRENGTH=0 disables it.
+    float spk = sparkles(fragCoord - mod(fragCoord, SPARKLE_CELL), 0.0);
+    float edgeMask = exp(-d * 28.0);
+    spk *= edgeMask * glow_alpha * SPARKLE_STRENGTH;
+    result += vec4(spk, spk, spk, spk);
+    return result;
+}

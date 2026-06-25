@@ -18,6 +18,27 @@
 
 ---
 
+## 2026-06-25 (c) — Radios enabled at the EARLIEST point of every flow
+
+Walked all share flows and moved each radio-on to the earliest correct trigger so
+Wi-Fi+BT are up as soon as possible. **Compile-only / on-device UNVERIFIED.**
+
+- **`EngineSendController.java`** — moved `acquireSend` from `sendTo()` (after the peer
+  pick) to the top of **`startScan()`** (the moment the send sheet opens). Opening the
+  sheet immediately starts the BLE presence scan + wake-beacon advertise (need BT) and a
+  send will need Wi-Fi shortly, so both radios now come on at sheet-open, not at pick.
+- Earliest-point map now: NFC tap → `NfcLaunchActivity` (at tap); receive armed →
+  after `startForeground` (covers settings/boot/tile/woken); send → `startScan`
+  (sheet open). `PreviewSendController` is a UI mock (fake "Demo" devices, no real
+  radios) — intentionally not wired.
+- "Already-on" is a no-op by design: the helper enables only radios that are OFF and
+  restores only those it turned on, so a radio the user already had on is never toggled.
+- Consequence: with Always-on receive enabled, a reboot re-arms receive and forces both
+  radios on (the app needs BT for the BLE advertise anyway); restored when receive is
+  turned OFF. BUILD SUCCESSFUL; APK refreshed at repo root.
+
+---
+
 ## 2026-06-25 (b) — NFC tap turns on Wi-Fi + Bluetooth immediately (faster start)
 
 On an NFC tap, silently enable **both** Wi-Fi and Bluetooth (whichever are off) the

@@ -5,10 +5,15 @@
   silent radio enable/restore (multi-app helper policy) + make an NFC tap turn on BOTH
   Wi-Fi and Bluetooth IMMEDIATELY for a faster start.
 - **DONE (code, 2026-06-25):** (a) base integration — coordinator + client + manifest +
-  send/receive hooks + signing fix. (b) NFC fast-start — `NfcLaunchActivity` now silently
+  send/receive hooks + signing fix. (b) NFC fast-start — `NfcLaunchActivity` silently
   enables BOTH radios on tap (no BT-dialog / 2nd-tap); coordinator switched to RADIO_BOTH
-  (BLE trigger needs BT, transfer needs Wi-Fi). Both builds BUILD SUCCESSFUL; APK at repo
-  root. Helper BT-enable confirmed from `ShareRadioSession.prepare()` source.
+  (BLE trigger needs BT, transfer needs Wi-Fi). (c) earliest-point sweep — send acquire
+  moved from `sendTo()` to `startScan()` (send-sheet open). All builds BUILD SUCCESSFUL;
+  APK at repo root. Helper BT-enable confirmed from `ShareRadioSession.prepare()` source.
+- **EARLIEST-POINT MAP (final):** NFC tap → `NfcLaunchActivity` (at tap); receive armed →
+  after `startForeground` (settings/boot/tile/woken); send → `EngineSendController.startScan`
+  (sheet open). `PreviewSendController` = UI mock, no real radios (not wired). "Already-on"
+  is a helper no-op (enables only OFF radios, restores only what it turned on).
 - **NEXT EXACT STEP:** user runs the ON-DEVICE TEST SCRIPT below on a helper-paired phone
   (esp. test 9: Wi-Fi+BT both OFF → tap → both flip on silently, no dialog, receive starts).
   On-device behaviour UNVERIFIED here (no device/helper in this env).

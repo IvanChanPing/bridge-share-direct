@@ -58,6 +58,13 @@ public final class EngineSendController implements SendController {
     @Override
     public void startScan(Listener listener) {
         this.listener = listener;
+        // RADIO HELPER (earliest send point): opening the send sheet immediately starts the BLE
+        // presence SCAN + wake-beacon advertise below — both need Bluetooth — and a send will
+        // shortly need Wi-Fi for the group. So enable BOTH radios NOW (the moment the sheet opens),
+        // not at sendTo(), so discovery + the eventual transfer start as fast as possible. Held
+        // (refcounted) until stop() = sheet closed; the helper restores only what it turned on, so
+        // radios already on are left untouched. See com.bridge.share.radio.BridgeRadioCoordinator.
+        com.bridge.share.radio.BridgeRadioCoordinator.acquireSend(appCtx);
         com.bridge.share.diag.DiagLog.d(TAG, "startScan: blePerms="
                 + com.bridge.share.trigger.PresenceAdvertiser.hasBlePerms(appCtx)
                 + " btEnabled=" + btEnabled());
@@ -95,11 +102,9 @@ public final class EngineSendController implements SendController {
     @Override
     public void sendTo(Peer peer, List<Uri> uris) {
         this.activePeer = peer;
-        // RADIO HELPER: a send needs Wi-Fi ON (the engine is about to create the Wi-Fi-Direct
-        // group / LocalOnlyHotspot). Ask the universal radio-helper to enable Wi-Fi silently;
-        // refcounted + idempotent, held until stop() (send sheet closed). No-op if the helper
-        // isn't installed. See com.bridge.share.radio.BridgeRadioCoordinator.
-        com.bridge.share.radio.BridgeRadioCoordinator.acquireSend(appCtx);
+        // RADIO HELPER: radios were already enabled at startScan() (send sheet open) — the
+        // earliest point — so the Wi-Fi-Direct group about to be created here is ready with no
+        // wait. acquireSend is idempotent/refcounted; the hold is released in stop().
         if (scanner != null) { scanner.stop(); scanner = null; } // pick made: stop the scan
 
         // Tear down any previous attempt FIRST so every send starts from a CLEAN host. (Pre-warming

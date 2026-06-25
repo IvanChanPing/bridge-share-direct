@@ -95,6 +95,11 @@ public final class EngineSendController implements SendController {
     @Override
     public void sendTo(Peer peer, List<Uri> uris) {
         this.activePeer = peer;
+        // RADIO HELPER: a send needs Wi-Fi ON (the engine is about to create the Wi-Fi-Direct
+        // group / LocalOnlyHotspot). Ask the universal radio-helper to enable Wi-Fi silently;
+        // refcounted + idempotent, held until stop() (send sheet closed). No-op if the helper
+        // isn't installed. See com.bridge.share.radio.BridgeRadioCoordinator.
+        com.bridge.share.radio.BridgeRadioCoordinator.acquireSend(appCtx);
         if (scanner != null) { scanner.stop(); scanner = null; } // pick made: stop the scan
 
         // Tear down any previous attempt FIRST so every send starts from a CLEAN host. (Pre-warming
@@ -173,6 +178,10 @@ public final class EngineSendController implements SendController {
     @Override
     public void stop() {
         cancelSendTimeout();
+        // RADIO HELPER: send sheet closed → the send is over (success, error, timeout, or the
+        // user dismissed the sheet all funnel here). Release our Wi-Fi hold; the helper restores
+        // the user's original Wi-Fi state once no owner remains. See BridgeRadioCoordinator.
+        com.bridge.share.radio.BridgeRadioCoordinator.releaseSend();
         com.bridge.share.trigger.WakeBeacon.stopAdvertise();
         if (scanner != null) { scanner.stop(); scanner = null; }
         if (gattWriter != null) { gattWriter.close(); gattWriter = null; }

@@ -18,6 +18,39 @@
 
 ---
 
+## 2026-06-25 — Universal radio-helper integration (silent Wi-Fi enable/restore)
+
+Wired Bridge Share Direct into the ONE shared `radio-helper` APK
+(`dev.superdrop.radiohelper`) so it silently turns **Wi-Fi** on for a share and
+restores the user's original Wi-Fi state afterwards — same helper used by
+`oconnect-bridge` (the "helper works with multiple apps" policy). **Compile-only /
+on-device UNVERIFIED.**
+
+- **NEW** `com.bridge.share.radio.BridgeRadioCoordinator` (Kotlin) — refcounted,
+  single-process **Wi-Fi** gate. Owners `SEND` + `RECEIVE`; helper SESSION mode
+  (`prepareForShare(RADIO_WIFI)` / `transferFinished`) + 5 s heartbeat; graceful
+  no-op if the helper is absent/denied. (oconnect's coordinator gates Bluetooth —
+  this one gates Wi-Fi because the Bridge link is Wi-Fi; the trigger is BLE.)
+- **NEW** `dev.superdrop.radiohelper.client.RadioHelperClient` (Kotlin) — verbatim
+  canonical drop-in client.
+- **`AndroidManifest.xml`** — `+uses-permission BIND_RADIO`, `+<queries>` for the
+  helper (release + `.debug`).
+- **`EngineSendController.java`** — `acquireSend()` at `sendTo()`, `releaseSend()`
+  at `stop()`.
+- **`ReceiveService.java`** — `acquireReceive()` after each successful
+  `startForeground` (armed + NFC-receive), `releaseReceive()` in `fullTeardown()`.
+  Wi-Fi held for the WHOLE armed-receive window (user choice).
+- **`build.gradle`** — signing switched from `keystore/debug.jks` (alias `bridge`,
+  fingerprint `20:9E:11:48…`) to the standard `~/.android/debug.keystore`
+  (`EE:B7:99:52…`), **matching the helper's key** — mandatory because `BIND_RADIO`
+  is a signature permission. ⚠️ A device with the old-key build installed must
+  uninstall it once (signature change blocks an in-place update).
+- Built APK signer verified = `eeb799…1cf7` (== helper). `BIND_RADIO` present in the
+  built manifest. APK: `bridge-share-direct-debug.apk` (direct flavor).
+- Journal + on-device test script: `docs/RADIO_HELPER_INTEGRATION_JOURNAL.md`.
+
+---
+
 A standalone Android↔Android peer-to-peer file-share app. The peer-to-peer
 connection (the "bridge") is a faithful, bite-for-bite port of SHAREit Lite
 3.17.58's Wi-Fi-Direct connection method (decompiled + deobfuscated locally),

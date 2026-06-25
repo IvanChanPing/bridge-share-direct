@@ -184,6 +184,9 @@ public class ReceiveService extends Service {
                 stopSelf();
                 return START_NOT_STICKY;
             }
+            // RADIO HELPER: NFC tap forced an active receive window — hold Wi-Fi ON for it too
+            // (released in fullTeardown()). Idempotent + refcounted; no-op if helper absent.
+            com.bridge.share.radio.BridgeRadioCoordinator.acquireReceive(this);
             com.bridge.share.diag.DiagLog.d(TAG, "NFC-initiated active receive (saved mode="
                     + ReceivePrefs.getMode(this) + ")");
             // Sticky window: keep advertising tapped through any routine re-arm for WOKEN_IDLE_MS.
@@ -224,6 +227,11 @@ public class ReceiveService extends Service {
                 startForeground(NOTIF_ID, buildNotification(mode));
             }
             com.bridge.share.diag.DiagLog.d(TAG, "startForeground OK woken=" + woken + " mode=" + mode);
+            // RADIO HELPER: receive is now armed (ALWAYS_ON / TIMED). Per the user's choice
+            // (2026-06-25) hold Wi-Fi ON for the WHOLE armed window (not just the active
+            // transfer), so a joining sender's Wi-Fi-Direct/hotspot link is always reachable.
+            // Idempotent + refcounted; released in fullTeardown(). No-op if helper absent.
+            com.bridge.share.radio.BridgeRadioCoordinator.acquireReceive(this);
         } catch (Throwable t) {
             com.bridge.share.diag.DiagLog.d(TAG, "startForeground REFUSED woken=" + woken
                     + " err=" + t.getClass().getName() + ": " + t.getMessage());
@@ -461,6 +469,10 @@ public class ReceiveService extends Service {
 
     /** Everything down (server + BLE + hotspot + wake lock). */
     private void fullTeardown() {
+        // RADIO HELPER: receive is fully disarmed (mode OFF / TIMED expiry / onDestroy all
+        // funnel here). Release the armed-window Wi-Fi hold; the helper restores the user's
+        // original Wi-Fi once no owner (send/receive) remains. Idempotent. See BridgeRadioCoordinator.
+        com.bridge.share.radio.BridgeRadioCoordinator.releaseReceive();
         cancelWatchdog();
         if (engine != null) { engine.stop(); engine = null; }
         if (presence != null) { presence.stop(); presence = null; }

@@ -25,6 +25,17 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- Universal radio-helper integration (see com.bridge.share.radio.BridgeRadioCoordinator
+         + dev.superdrop.radiohelper.client.RadioHelperClient). BIND_RADIO is a SIGNATURE
+         permission held by the radio-helper APK, so this app MUST be signed with the SAME key
+         as the helper (~/.android/debug.keystore) or the bind is denied. <queries> lists BOTH
+         the release and the installed .debug helper package so we can resolve + bind either. -->
+    <uses-permission android:name="dev.superdrop.radiohelper.permission.BIND_RADIO" />
+    <queries>
+        <package android:name="dev.superdrop.radiohelper" />
+        <package android:name="dev.superdrop.radiohelper.debug" />
+    </queries>
+
     <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
     <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />

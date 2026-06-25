@@ -26,10 +26,17 @@ android {
 
     signingConfigs {
         debug {
-            storeFile file('keystore/debug.jks')
-            storePassword 'bridgepass'
-            keyAlias 'bridge'
-            keyPassword 'bridgepass'
+            // Signed with the STANDARD Android debug keystore — the SAME key the universal
+            // radio-helper APK is signed with. This is REQUIRED: dev.superdrop.radiohelper's
+            // BIND_RADIO is a signature permission, so a different key would make the helper
+            // bind silently fail. (Was keystore/debug.jks alias 'bridge' — its fingerprint
+            // 20:9E:11:48… did NOT match the helper's EE:B7:99:52…; switched 2026-06-25.)
+            // Consequence: a device that has the old-key build installed must uninstall it
+            // once before installing this one (signature change blocks an in-place update).
+            storeFile file(System.getProperty('user.home') + '/.android/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
         }
     }
 

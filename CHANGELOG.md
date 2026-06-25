@@ -18,6 +18,30 @@
 
 ---
 
+## 2026-06-25 (b) — NFC tap turns on Wi-Fi + Bluetooth immediately (faster start)
+
+On an NFC tap, silently enable **both** Wi-Fi and Bluetooth (whichever are off) the
+instant the tap lands, then start the receive immediately — removing the old "system
+Bluetooth dialog → enable → tap again" detour so the transfer starts much faster.
+**Compile-only / on-device UNVERIFIED.**
+
+- **`NfcLaunchActivity.java`** — replaced the blocking `ensureBluetoothOn()` (which
+  popped the system BT dialog and required a 2nd tap, and never touched Wi-Fi) with
+  `startNfcReceive()`: calls `BridgeRadioCoordinator.acquireReceiveForNfc()` to silently
+  enable BOTH radios + start the receive at once. Single funnel for both `onCreate` and
+  `onNewIntent`. Legacy BT-dialog kept ONLY as the helper-absent fallback.
+- **`BridgeRadioCoordinator.kt`** — now requests **`RADIO_BOTH`** (was `RADIO_WIFI`) for
+  every flow: the BLE trigger/handshake needs Bluetooth, the transfer needs Wi-Fi, so
+  every share needs both. The helper enables whichever are off and restores only those.
+  Added `acquireReceiveForNfc(ctx)` (NFC fast-start; returns helper-installed) and
+  `isHelperInstalled(ctx)`. Heartbeat unchanged (5 s; restores ~20 s after last beat on
+  a crash; never cuts a live transfer).
+- Verified: BUILD SUCCESSFUL; helper's `ShareRadioSession.prepare(RADIO_BOTH)` confirmed
+  to enable+restore BT as well as Wi-Fi. Earliest-tap latency on a given OEM is the one
+  device-only unknown (observe `adb logcat -s NfcLaunch BridgeRadioCoord`).
+
+---
+
 ## 2026-06-25 — Universal radio-helper integration (silent Wi-Fi enable/restore)
 
 Wired Bridge Share Direct into the ONE shared `radio-helper` APK

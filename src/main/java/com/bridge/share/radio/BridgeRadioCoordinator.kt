@@ -1,21 +1,32 @@
 /*
  * ════════════════════════════════════════════════════════════════════════════
- *  BridgeRadioCoordinator — refcounted, single-process Wi-Fi gate for Bridge
- *  Share Direct, routed through the universal radio-helper APK.
+ *  BridgeRadioCoordinator — refcounted, single-process Wi-Fi+Bluetooth gate for
+ *  Bridge Share Direct, routed through the universal radio-helper APK.
  * ════════════════════════════════════════════════════════════════════════════
  *
  * WHAT THIS IS
- *   A process-wide singleton that turns Wi-Fi ON (silently, via the installed
- *   `radio-helper` app) when ANY Bridge Share Direct flow that needs Wi-Fi
- *   becomes active, and restores Wi-Fi to the user's ORIGINAL state when the
- *   LAST such flow ends. It is the app's only entry point to the helper.
+ *   A process-wide singleton that turns Wi-Fi AND Bluetooth ON (silently, via the
+ *   installed `radio-helper` app) when ANY Bridge Share Direct flow that needs them
+ *   becomes active, and restores BOTH to the user's ORIGINAL state when the LAST
+ *   such flow ends. It is the app's only entry point to the helper.
  *
- *   NOTE — Wi-Fi, not Bluetooth. Bridge Share Direct is the SHAREit Wi-Fi-Direct
- *   port: the link (Wi-Fi-Direct group / LocalOnlyHotspot / Wi-Fi Aware) runs over
- *   Wi-Fi, while the trigger/discovery handshake runs over BLE. So the radio this
- *   gate enables is Wi-Fi ([RadioHelperClient.RADIO_WIFI]). (The O+ Connect bridge's
- *   coordinator gates Bluetooth instead, because OShare discovers over BT — same
- *   shape, different radio.) BLE/BT is left to the OS/user as before; we don't touch it.
+ *   WHY BOTH radios (corrected 2026-06-25). Bridge Share Direct's transfer link
+ *   (Wi-Fi-Direct group / LocalOnlyHotspot / Wi-Fi Aware) runs over **Wi-Fi**, but
+ *   the trigger/discovery + creds handshake runs over **BLE** (PresenceScanner /
+ *   CredsGattWriter on send; presence advertise + GATT on receive). So EVERY flow
+ *   needs BT (for the BLE handshake) and Wi-Fi (for the transfer). An earlier
+ *   version requested Wi-Fi only — that left BT off and could stall the BLE
+ *   handshake. We now request [RadioHelperClient.RADIO_BOTH]; the helper enables
+ *   whichever are off and restores ONLY what it turned on (non-destructive: a
+ *   radio the user already had on is left untouched on restore).
+ *
+ *   NFC FAST-START (the reason this gate also exposes [acquireReceiveForNfc]).
+ *   On an NFC tap the receiver wants BOTH radios up IMMEDIATELY so the BLE
+ *   handshake + Wi-Fi join can begin without the old "system Bluetooth dialog →
+ *   tap again" delay. [NfcLaunchActivity] (the transparent activity launched the
+ *   instant a tap lands) calls [acquireReceiveForNfc] right away, which fires the
+ *   silent BOTH-radio enable + starts the heartbeat before the receive service is
+ *   even up.
  *
  * WHAT IT'S CALLED / HOW IT'S INVOKED (no UI of its own — called from code):
  *   - [acquireReceive] / [releaseReceive] — from {@code ReceiveService}. Per the
@@ -116,6 +127,42 @@ object BridgeRadioCoordinator {
     @JvmStatic fun acquireSend(ctx: Context) = acquire(ctx, OWNER_SEND)
     @JvmStatic fun releaseSend() = release(OWNER_SEND)
 
+    /**
+     * NFC FAST-START. Called by [NfcLaunchActivity] the instant an NFC tap lands, to
+     * silently turn ON both Wi-Fi and Bluetooth (whichever are off) IMMEDIATELY — so the
+     * BLE handshake + Wi-Fi join can begin without the legacy "system Bluetooth dialog →
+     * tap again" delay. Kicks off the same refcounted RECEIVE acquire (RADIO_BOTH +
+     * heartbeat) used elsewhere.
+     *
+     * @return true if the radio-helper is installed (so it WILL silently enable the radios
+     *   — the caller should just proceed with the receive); false if the helper is absent
+     *   (the caller must fall back to its own enable path, e.g. the BT-enable dialog).
+     *   NOTE: true means "installed", not "bind succeeded" — a wrong-key/denied bind still
+     *   no-ops gracefully inside [acquire]; the installed check is a fast, synchronous gate
+     *   so the NFC path never blocks on the async bind to decide its fallback.
+     */
+    @JvmStatic
+    fun acquireReceiveForNfc(ctx: Context): Boolean {
+        acquire(ctx, OWNER_RECEIVE) // fire the silent BOTH-radio enable + heartbeat now
+        return isHelperInstalled(ctx)
+    }
+
+    /** True if either radio-helper package (release or .debug) is installed on the device. */
+    @JvmStatic
+    fun isHelperInstalled(ctx: Context): Boolean {
+        val pm = ctx.packageManager
+        return HELPER_PACKAGES.any { pkg ->
+            try {
+                pm.getPackageInfo(pkg, 0); true
+            } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+                false
+            }
+        }
+    }
+
+    // Must match RadioHelperClient.HELPER_PACKAGES (release first, then the .debug build).
+    private val HELPER_PACKAGES = listOf("dev.superdrop.radiohelper", "dev.superdrop.radiohelper.debug")
+
     /** Mark [owner] active; if it's the first active owner, enable Wi-Fi via the helper. */
     @JvmStatic
     fun acquire(ctx: Context, owner: String) {
@@ -139,8 +186,10 @@ object BridgeRadioCoordinator {
                     return@connect
                 }
                 prepared = true
-                client!!.prepareForShare(RadioHelperClient.RADIO_WIFI) { radiosOn ->
-                    Log.i(TAG, "prepareForShare done; radiosNowOn=$radiosOn")
+                // RADIO_BOTH: enable Wi-Fi (transfer) AND Bluetooth (BLE trigger/handshake).
+                // The helper turns on whichever are off and restores only those it enabled.
+                client!!.prepareForShare(RadioHelperClient.RADIO_BOTH) { radiosOn ->
+                    Log.i(TAG, "prepareForShare(BOTH) done; radiosNowOn=$radiosOn")
                 }
                 main.removeCallbacks(heartbeat)
                 main.postDelayed(heartbeat, HEARTBEAT_MS)

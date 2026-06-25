@@ -1,15 +1,29 @@
 # Bridge Share Direct ↔ Universal Radio-Helper Integration — Task Journal
 
 ## CURRENT STATE / NEXT STEP
-- **Goal:** wire `bridge-share-direct` (the de-iPhone'd standalone SHAREit Wi-Fi-Direct
-  fork) into the ONE universal `radio-helper` APK so it silently enables Wi-Fi for
-  shares and restores it — the same helper used by `oconnect-bridge`, per the
-  "helper works with multiple apps" policy.
-- **DONE (code, 2026-06-25):** all wiring written + signing key fixed. Building.
-- **IN PROGRESS:** `gradle assembleDirectDebug` compile verification.
-- **NEXT EXACT STEP:** confirm BUILD SUCCESSFUL → copy APK to repo root → commit +
-  CHANGELOG → hand user the on-device test script (below). On-device behaviour is
-  UNVERIFIED (no device/helper-paired phone in this env).
+- **Goal:** wire `bridge-share-direct` into the ONE universal `radio-helper` APK for
+  silent radio enable/restore (multi-app helper policy) + make an NFC tap turn on BOTH
+  Wi-Fi and Bluetooth IMMEDIATELY for a faster start.
+- **DONE (code, 2026-06-25):** (a) base integration — coordinator + client + manifest +
+  send/receive hooks + signing fix. (b) NFC fast-start — `NfcLaunchActivity` now silently
+  enables BOTH radios on tap (no BT-dialog / 2nd-tap); coordinator switched to RADIO_BOTH
+  (BLE trigger needs BT, transfer needs Wi-Fi). Both builds BUILD SUCCESSFUL; APK at repo
+  root. Helper BT-enable confirmed from `ShareRadioSession.prepare()` source.
+- **NEXT EXACT STEP:** user runs the ON-DEVICE TEST SCRIPT below on a helper-paired phone
+  (esp. test 9: Wi-Fi+BT both OFF → tap → both flip on silently, no dialog, receive starts).
+  On-device behaviour UNVERIFIED here (no device/helper in this env).
+
+## NFC FAST-START (added 2026-06-25 (b))
+- Earliest receiver NFC landing point = `NfcLaunchActivity` (NDEF_DISCOVERED, host
+  `bridgeshare.app`). OLD: `ensureBluetoothOn()` popped the system BT dialog + returned
+  false if BT off → needed a 2nd tap; Wi-Fi never touched. NEW: `startNfcReceive()` →
+  `BridgeRadioCoordinator.acquireReceiveForNfc(this)` fires silent BOTH-radio enable +
+  heartbeat, then `ReceiveService.nfcReceive()` immediately. Helper-absent → legacy
+  BT-dialog fallback. Funnel covers onCreate + onNewIntent.
+- Coordinator now requests `RADIO_BOTH` for ALL flows (send + receive) — corrected from
+  RADIO_WIFI-only (which would've left BT off and stalled the BLE handshake).
+- VERIFIED: helper `ShareRadioSession.prepare()` (bada-fork) enables BT when RADIO_BT set
+  (line ~105) and restores only what it turned on (line ~133).
 
 ## What was changed (all 2026-06-25)
 | # | File | Change |

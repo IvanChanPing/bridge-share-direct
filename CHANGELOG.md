@@ -16,6 +16,16 @@
 > `hotspot` — so the installable packages are `com.bridge.share.directapp.direct`
 > etc. Everything below this block is the inherited history from `shareit-bridge`.
 
+## [2026-07-05] Receive overlay: one-tap grant via the radio-helper
+The "Enable overlay" button on the main screen is now **one-tap**: it asks the universal
+`radio-helper` to grant this app `SYSTEM_ALERT_WINDOW` ("draw over other apps") silently over
+the helper's shell-UID self-ADB channel — no Settings toggle, no per-boot step (the appop
+persists across reboot). On failure (helper absent / not paired / grant refused) it falls back
+to the system overlay-permission Settings screen. New `OverlayGrantHelper.kt` (a Java-friendly
+`Consumer<Boolean>` bridge) + `RadioHelperClient.grantOverlay()`, which sends `MSG_GRANT_OVERLAY`
+carrying the app's package. The grant runs over the helper's self-ADB channel once the helper's
+one-time Wireless-Debugging pairing is set up.
+
 ---
 
 ## 2026-06-25 (c) — Radios enabled at the EARLIEST point of every flow

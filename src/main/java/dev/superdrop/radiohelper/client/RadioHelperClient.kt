@@ -70,6 +70,7 @@ class RadioHelperClient(context: Context) {
     private val queryCbs = ArrayDeque<(Boolean, Boolean) -> Unit>()
     private val prepareCbs = ArrayDeque<(Int) -> Unit>()
     private val finishedCbs = ArrayDeque<() -> Unit>()
+    private val overlayCbs = ArrayDeque<(Boolean) -> Unit>()
 
     private val incoming =
         Messenger(
@@ -80,6 +81,7 @@ class RadioHelperClient(context: Context) {
                     MSG_QUERY -> queryCbs.poll()?.invoke(msg.arg1 == 1, msg.arg2 == 1)
                     MSG_PREPARE_SHARE -> prepareCbs.poll()?.invoke(msg.arg1)
                     MSG_TRANSFER_FINISHED -> finishedCbs.poll()?.invoke()
+                    MSG_GRANT_OVERLAY -> overlayCbs.poll()?.invoke(msg.arg1 == 1)
                 }
                 true
             },
@@ -265,6 +267,34 @@ class RadioHelperClient(context: Context) {
         runCatching { m.send(Message.obtain(null, MSG_TRANSFER_HEARTBEAT)) }
     }
 
+    /**
+     * ONE-TAP OVERLAY GRANT — ask the helper to grant THIS app "draw over other
+     * apps" (SYSTEM_ALERT_WINDOW) silently, via the helper's shell-UID self-ADB
+     * channel: no Settings toggle, no per-boot step (the appop persists across
+     * reboot). [cb] gets true only if the helper verified the op is 'allow'
+     * afterward; false if the helper isn't connected, isn't paired for self-ADB, or
+     * the grant didn't take — in which case the caller should fall back to sending
+     * the user to the overlay Settings toggle (ACTION_MANAGE_OVERLAY_PERMISSION).
+     * Requires the helper's one-time Wireless-Debugging pairing (done in the helper
+     * app). Call [connect] (and act on its false) first.
+     */
+    fun grantOverlay(cb: (Boolean) -> Unit) {
+        val m = outgoing
+        if (m == null) {
+            cb(false)
+            return
+        }
+        overlayCbs.add(cb)
+        runCatching {
+            m.send(
+                Message.obtain(null, MSG_GRANT_OVERLAY).also {
+                    it.data = android.os.Bundle().apply { putString(KEY_OVERLAY_PKG, appContext.packageName) }
+                    it.replyTo = incoming
+                },
+            )
+        }.onFailure { overlayCbs.remove(cb); cb(false) }
+    }
+
     /** Unbind. Call when the app no longer needs the helper. */
     fun disconnect() {
         mainHandler.removeCallbacks(connectTimeout)
@@ -289,6 +319,10 @@ class RadioHelperClient(context: Context) {
         private const val MSG_PREPARE_SHARE = 4
         private const val MSG_TRANSFER_FINISHED = 5
         private const val MSG_TRANSFER_HEARTBEAT = 6
+
+        /** One-tap overlay grant (SYSTEM_ALERT_WINDOW) — MUST match RadioService. */
+        private const val MSG_GRANT_OVERLAY = 7
+        private const val KEY_OVERLAY_PKG = "pkg"
 
         /** Radio bitmask for [prepareForShare] (matches ShareRadioSession). */
         const val RADIO_WIFI = 1

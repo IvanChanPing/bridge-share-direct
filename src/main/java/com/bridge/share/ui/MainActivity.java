@@ -29,7 +29,7 @@ public class MainActivity extends Activity {
         if (overlayPermButton != null) {
             overlayPermButton.setText(ReceiveUi.overlayEnabled(this)
                     ? "Overlay: ON (receive shows as overlay)"
-                    : "Enable overlay (receive shows as bottom sheet)");
+                    : "Enable overlay — tap to grant (via helper)");
         }
         if (islandButton != null) {
             islandButton.setText(IslandA11yService.isConnected()
@@ -120,10 +120,36 @@ public class MainActivity extends Activity {
         root.addView(previewRecv, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // "Enable overlay" button — ONE-TAP grant via the universal radio-helper
+        // (silent, appop persists across reboot). If overlay is already on, tapping
+        // opens the system toggle (so the user can turn it off). If off, it asks the
+        // helper to grant SYSTEM_ALERT_WINDOW in one tap; on failure (helper absent /
+        // not paired / grant refused) it falls back to the manual Settings toggle.
         android.widget.Button overlayPerm = new android.widget.Button(this);
-        overlayPerm.setOnClickListener(v -> startActivity(new android.content.Intent(
-                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                android.net.Uri.parse("package:" + getPackageName()))));
+        overlayPerm.setOnClickListener(v -> {
+            if (ReceiveUi.overlayEnabled(this)) {
+                openOverlaySettings();
+                return;
+            }
+            android.widget.Toast.makeText(this, "Granting overlay via helper…",
+                    android.widget.Toast.LENGTH_SHORT).show();
+            OverlayGrantHelper.requestViaHelper(this, ok -> {
+                // Delivered on the main looper (RadioHelperClient guarantee) → UI-safe.
+                if (ok) {
+                    android.widget.Toast.makeText(this, "Overlay enabled",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                    if (overlayPermButton != null) {
+                        overlayPermButton.setText("Overlay: ON (receive shows as overlay)");
+                    }
+                } else {
+                    android.widget.Toast.makeText(this,
+                            "Couldn't grant via helper — opening Settings. "
+                                    + "(Set up the helper's one-time pairing for one-tap.)",
+                            android.widget.Toast.LENGTH_LONG).show();
+                    openOverlaySettings();
+                }
+            });
+        });
         root.addView(overlayPerm, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         this.overlayPermButton = overlayPerm;
@@ -233,6 +259,15 @@ public class MainActivity extends Activity {
         group.addView(rb, new RadioGroup.LayoutParams(
                 RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT));
         return rb;
+    }
+
+    /** Manual fallback: open the system "Display over other apps" toggle for this app. */
+    private void openOverlaySettings() {
+        try {
+            startActivity(new android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:" + getPackageName())));
+        } catch (Exception ignored) {}
     }
 
     private int dp(int v) {

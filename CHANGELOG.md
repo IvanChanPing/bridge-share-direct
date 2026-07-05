@@ -16,6 +16,16 @@
 > `hotspot` — so the installable packages are `com.bridge.share.directapp.direct`
 > etc. Everything below this block is the inherited history from `shareit-bridge`.
 
+## [2026-07-05] Public release: GitHub Actions CI (both APKs), vendored radio-helper, README
+Set up a public GitHub release that ships BOTH APKs. The universal radio-helper is vendored as a
+standalone Gradle project under `radio-helper/` (its own Gradle 8.10.2 wrapper; canonical source lives
+in the Super Drop repo) so CI compiles it alongside the app. Both are signed with the SAME universal
+debug key so the helper's `BIND_RADIO` (a signature permission) is granted and the app can talk to it —
+the key is provided to CI via the `SIGNING_KEYSTORE_B64` repo secret (never committed) and falls back to
+`~/.android/debug.keystore` for local builds. Added a Gradle 8.7 wrapper for the app,
+`.github/workflows/release-apk.yml` (on a `v*` tag: build both APKs and attach them to a Release), and a
+README with one-tap Download links for both APKs.
+
 ## [2026-07-05] Receive overlay: one-tap grant via the radio-helper
 The "Enable overlay" button on the main screen is now **one-tap**: it asks the universal
 `radio-helper` to grant this app `SYSTEM_ALERT_WINDOW` ("draw over other apps") silently over

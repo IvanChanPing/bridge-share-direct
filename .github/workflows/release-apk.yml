@@ -1,0 +1,68 @@
+name: Release APKs
+
+# Builds BOTH the app (Bridge Share Direct) and the companion Radio Helper from
+# source, then publishes both APKs to a GitHub Release. Fires on a version tag
+# (push a tag like v1.0), or run manually from the Actions tab.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # create the Release + upload the APK assets
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Both APKs are signed with the SAME universal debug key (eeb799) so the helper's
+      # BIND_RADIO (a signature permission) is granted and the app can talk to it. The key is
+      # NOT committed — it comes from the SIGNING_KEYSTORE_B64 repo secret (base64 of the debug
+      # keystore). Both gradle builds pick it up via the SIGNING_KEYSTORE env (absolute path).
+      - name: Prepare signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::SIGNING_KEYSTORE_B64 secret is not set — add it (base64 of the shared eeb799 debug keystore) so both APKs are signed with the universal key."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/signing-debug.jks"
+          echo "SIGNING_KEYSTORE=$GITHUB_WORKSPACE/signing-debug.jks" >> "$GITHUB_ENV"
+
+      # App: AGP 8.5.2 / Gradle 8.7 (its own wrapper). Flavor "direct" (Wi-Fi Direct).
+      - name: Build Bridge Share Direct (app)
+        run: ./gradlew assembleDirectDebug --no-daemon --console=plain
+
+      # Companion helper: standalone project, AGP 8.7.3 / Gradle 8.10.2 (its own wrapper).
+      - name: Build Radio Helper (companion)
+        working-directory: radio-helper
+        run: ./gradlew assembleDebug --no-daemon --console=plain
+
+      # Both are signed with the committed shared debug keystore (keystore/shared-debug.jks),
+      # so the helper's BIND_RADIO (a signature permission) is granted and the signature is
+      # stable across releases. Rename to stable asset names for the /releases/latest/download URLs.
+      - name: Collect APKs
+        run: |
+          mkdir -p release
+          cp build/outputs/apk/direct/debug/bridge-share-direct-direct-debug.apk release/bridge-share-direct-debug.apk
+          cp radio-helper/build/outputs/apk/debug/radio-helper-debug.apk release/radio-helper-debug.apk
+          ls -la release
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/bridge-share-direct-debug.apk
+            release/radio-helper-debug.apk

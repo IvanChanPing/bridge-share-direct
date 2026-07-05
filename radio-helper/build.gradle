@@ -1,0 +1,77 @@
+// Universal radio-helper — standalone build (vendored into bridge-share-direct).
+//
+// Targets API 28 ON PURPOSE: WifiManager.setWifiEnabled() works for targetSdk<=28
+// and BluetoothAdapter.enable() for <=32, so this companion APK can flip the radios
+// silently (the modern-targetSdk app cannot). It also grants a signed client app
+// SYSTEM_ALERT_WINDOW in one tap over its self-ADB shell (RadioService.MSG_GRANT_OVERLAY).
+// Versions are pinned to the ones this module is known to build with (AGP 8.7.3 /
+// Kotlin 2.1.0 / compileSdk 36) — the app builds separately with its own toolchain.
+plugins {
+    id 'com.android.application' version '8.7.3'
+    id 'org.jetbrains.kotlin.android' version '2.1.0'
+}
+
+android {
+    namespace 'dev.superdrop.radiohelper'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'dev.superdrop.radiohelper'
+        minSdk 24
+        // INTENTIONALLY LOW — the whole reason this module exists (legacy radio toggle). Do NOT raise.
+        targetSdk 28
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        debug {
+            // The UNIVERSAL helper key: the AGP default debug key (~/.android/debug.keystore)
+            // that ALL the user's sharing apps AND the canonical radio-helper are signed with,
+            // so this helper stays cross-app compatible (BIND_RADIO is a signature permission).
+            // CI signs with the SAME key via the SIGNING_KEYSTORE env (decoded from the
+            // SIGNING_KEYSTORE_B64 GitHub secret); locally it uses ~/.android/debug.keystore.
+            storeFile file(System.getenv('SIGNING_KEYSTORE') ?: (System.getProperty('user.home') + '/.android/debug.keystore'))
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+
+    // Sideloaded helper — the deliberately-low targetSdk must not fail the build.
+    lint { disable 'ExpiredTargetSdkVersion' }
+
+    buildFeatures {
+        aidl true       // Shizuku user-service interface
+        buildConfig true
+    }
+}
+
+dependencies {
+    // Shizuku = optional silent Wi-Fi fallback (shell-UID `svc wifi`).
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+    // Self-ADB (no Shizuku): pure-Java Android-11 ADB client — pairs once with the
+    // device's own Wireless Debugging, then runs shell (svc wifi / appops set) as UID 2000.
+    implementation 'com.github.MuntashirAkon:libadb-android:3.1.1'
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation 'org.bouncycastle:bcprov-jdk15to18:1.81'
+    implementation 'org.bouncycastle:bcpkix-jdk15to18:1.81'
+}

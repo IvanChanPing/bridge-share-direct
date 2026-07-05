@@ -20,13 +20,20 @@
   bada template synced) + `OverlayGrantHelper.kt` (Java bridge) + MainActivity "Enable overlay" button
   now one-tap w/ Settings fallback. Built: radio-helper-debug.apk (13.2MB) + bridge-share-direct-direct-debug.apk.
   CHANGELOGs updated both repos. Runtime grant still device-UNVERIFIED (needs helper's one-time pairing).
-- **NEXT EXACT STEP: THE PUSH (Phase 3).** (1) create GitHub repo IvanChanPing/bridge-share-direct (PUBLIC)
-  via gh; (2) add `radio-helper/` as an independent standalone Gradle project in the bridge repo (copy the
-  module, convert its build.gradle.kts version-catalog refs → inline, add jitpack + Shizuku/Conscrypt/BC deps,
-  own settings.gradle + gradle 8.7 wrapper); (3) add a gradle 8.7 wrapper to the app too; (4) ONE shared
-  committed debug keystore both sign with; (5) `.github/workflows/release-apk.yml` — on `v*` tag + manual,
-  JDK17 + Android SDK, build BOTH APKs, publish BOTH to a Release (stable names); (6) README with TWO Download
-  buttons (app + helper) → releases/latest/download/…; (7) push via git-push-proxy skill.
+- **DONE 2026-07-05 (Phase 3 scaffolding, local, both BUILD SUCCESSFUL):** vendored `radio-helper/` as a
+  standalone Gradle project (AGP 8.7.3/Gradle 8.10.2 wrapper, `gradle.properties android.useAndroidX=true`
+  + `suppressUnsupportedCompileSdk=36`, jitpack repo); app got a Gradle 8.7 wrapper;
+  `.github/workflows/release-apk.yml` builds BOTH and attaches to a Release; README with 2 Download links.
+- **SIGNING (corrected after a MISTAKE):** I first generated a NEW keystore (22a921) and signed app+helper
+  with it — that BROKE universal-helper compat (all the user's apps + canonical helper are on eeb799;
+  BIND_RADIO is a signature perm). Reverted. User chose the SECRET route: both `build.gradle` read the
+  keystore from env `SIGNING_KEYSTORE` (CI decodes it from repo secret `SIGNING_KEYSTORE_B64`), falling back
+  to `~/.android/debug.keystore` locally. Both APKs re-verified = **eeb799** (universal). LESSON: never
+  re-key the universal helper; sign everything with eeb799 (the box's ~/.android/debug.keystore).
+- **NEXT EXACT STEP:** commit the scaffolding, then (all via Decodo proxy — HTTPS_PROXY for `gh`,
+  git-push-proxy for git): `gh repo create IvanChanPing/bridge-share-direct --public`; set secret
+  `SIGNING_KEYSTORE_B64` = base64 of `~/.android/debug.keystore`; push `master`; `gh release create v1.0`
+  uploading the two local eeb799 APKs so the README download links resolve immediately. CI verifies on the next tag.
 
 ## PRE-BUILD RISK PASS — Phase 2 overlay grant (2026-07-05)
 - **VERIFIED mechanism:** `AdbWifiManager.runShell(ctx,cmd)` opens `shell:<cmd>` over libadb
